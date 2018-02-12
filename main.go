@@ -81,16 +81,27 @@ const (
 
 func drawColorBox(screen *ebiten.Image, c ncs.Color, x, y int) {
 	ebitenutil.DrawRect(screen, float64(x), float64(y), boxWidth, boxWidth, c)
+}
 
+func drawColorBoxText(screen *ebiten.Image, c ncs.Color, x, y int) {
 	gb, _, _ := mplusbitmap.Gothic12r.GlyphBounds('M')
 	lineHeight := mplusbitmap.Gothic12r.Metrics().Height.Ceil()
 
 	tx := x + 16
 	ty := y + 16 + -gb.Min.Y.Ceil()
-	text.Draw(screen, c.String(), mplusbitmap.Gothic12r, tx+1, ty+1, color.RGBA{0, 0, 0, 0x80})
-	text.Draw(screen, c.String(), mplusbitmap.Gothic12r, tx, ty, color.White)
-	text.Draw(screen, colorHex(c), mplusbitmap.Gothic12r, tx+1, ty+lineHeight+1, color.RGBA{0, 0, 0, 0x80})
 	text.Draw(screen, colorHex(c), mplusbitmap.Gothic12r, tx, ty+lineHeight, color.White)
+	text.Draw(screen, c.String(), mplusbitmap.Gothic12r, tx, ty, color.White)
+}
+
+func drawColorBoxTextShadow(screen *ebiten.Image, c ncs.Color, x, y int) {
+	gb, _, _ := mplusbitmap.Gothic12r.GlyphBounds('M')
+	lineHeight := mplusbitmap.Gothic12r.Metrics().Height.Ceil()
+
+	tx := x + 16
+	ty := y + 16 + -gb.Min.Y.Ceil()
+
+	text.Draw(screen, colorHex(c), mplusbitmap.Gothic12r, tx+1, ty+lineHeight+1, color.RGBA{0, 0, 0, 0x80})
+	text.Draw(screen, c.String(), mplusbitmap.Gothic12r, tx+1, ty+1, color.RGBA{0, 0, 0, 0x80})
 }
 
 func uint8Hex(b uint8) string {
@@ -208,6 +219,23 @@ func (s *state) update(screen *ebiten.Image) error {
 			x := (screenWidth-boxWidth)/2 + i*boxWidth
 			y := (screenHeight-boxHeight)/2 + j*boxHeight
 			drawColorBox(screen, c, x, y)
+		}
+	}
+
+	for j := -4; j <= 4; j++ {
+		for i := -4; i <= 4; i++ {
+			c := adjustColor(s.color, j, 0, i)
+			x := (screenWidth-boxWidth)/2 + i*boxWidth
+			y := (screenHeight-boxHeight)/2 + j*boxHeight
+			drawColorBoxTextShadow(screen, c, x, y)
+		}
+	}
+	for j := -4; j <= 4; j++ {
+		for i := -4; i <= 4; i++ {
+			c := adjustColor(s.color, j, 0, i)
+			x := (screenWidth-boxWidth)/2 + i*boxWidth
+			y := (screenHeight-boxHeight)/2 + j*boxHeight
+			drawColorBoxText(screen, c, x, y)
 		}
 	}
 
