@@ -24,7 +24,6 @@ import (
 	"github.com/hajimehoshi/ebiten/text"
 	"github.com/hajimehoshi/go-mplusbitmap"
 	"github.com/hajimehoshi/ncs"
-	//"golang.org/x/image/font"
 )
 
 var (
@@ -73,50 +72,52 @@ var (
 )
 
 const (
-	screenWidth  = 800
-	screenHeight = 640
+	screenWidth  = 80 * 9
+	screenHeight = 80 * 9
 
-	boxWidth  = 120
-	boxHeight = 120
+	boxWidth  = 80
+	boxHeight = 80
 )
 
 func drawColorBox(screen *ebiten.Image, c ncs.Color, x, y int) {
-	ebitenutil.DrawRect(screen, float64(x), float64(y), float64(x)+boxWidth, float64(y)+boxWidth, c)
+	ebitenutil.DrawRect(screen, float64(x), float64(y), boxWidth, boxWidth, c)
 
 	gb, _, _ := mplusbitmap.Gothic12r.GlyphBounds('M')
 	lineHeight := mplusbitmap.Gothic12r.Metrics().Height.Ceil()
 
-	tx := 16
-	ty := 16 + -gb.Min.Y.Ceil()
+	tx := x + 16
+	ty := y + 16 + -gb.Min.Y.Ceil()
 	text.Draw(screen, c.String(), mplusbitmap.Gothic12r, tx+1, ty+1, color.RGBA{0, 0, 0, 0x80})
 	text.Draw(screen, c.String(), mplusbitmap.Gothic12r, tx, ty, color.White)
 	text.Draw(screen, colorHex(c), mplusbitmap.Gothic12r, tx+1, ty+lineHeight+1, color.RGBA{0, 0, 0, 0x80})
 	text.Draw(screen, colorHex(c), mplusbitmap.Gothic12r, tx, ty+lineHeight, color.White)
 }
 
-func colorHex(c color.Color) string {
-	r, g, b, _ := c.RGBA()
-	return fmt.Sprintf("#%02X%02X%02X", uint8(r>>8), uint8(g>>8), uint8(b>>8))
+func uint8Hex(b uint8) string {
+	// fmt.Sprintf is slow on browsers. Use faster implementation here.
+	str := ""
+	b1 := b >> 4
+	b2 := b & 0xf
+	if b1 <= 9 {
+		str += string(b1 + '0')
+	} else {
+		str += string(b1 - 0xa + 'A')
+	}
+	if b2 <= 9 {
+		str += string(b2 + '0')
+	} else {
+		str += string(b2 - 0xa + 'A')
+	}
+	return str
 }
 
-func adjustColor(c ncs.Color, chromaticness int, blackness int, hue int) ncs.Color {
-	const unit = 10
+func colorHex(c color.Color) string {
+	r, g, b, _ := c.RGBA()
+	return "#" + uint8Hex(uint8(r>>8)) + uint8Hex(uint8(g>>8)) + uint8Hex(uint8(b>>8))
+}
 
-	if chromaticness != 0 {
-		if c.Chromaticness == 99 {
-			c.Chromaticness = 100
-		}
-		c.Chromaticness += chromaticness * unit
-		if c.Chromaticness >= 100 {
-			c.Chromaticness = 99
-		}
-		if c.Chromaticness < 0 {
-			c.Chromaticness = 0
-		}
-		if c.Chromaticness > 100-c.Blackness {
-			c.Chromaticness = 100 - c.Blackness
-		}
-	}
+func adjustColor(c ncs.Color, blackness int, chromaticness int, hue int) ncs.Color {
+	const unit = 10
 
 	if blackness != 0 {
 		if c.Blackness == 99 {
@@ -130,7 +131,31 @@ func adjustColor(c ncs.Color, chromaticness int, blackness int, hue int) ncs.Col
 			c.Blackness = 0
 		}
 		if c.Blackness > 100-c.Chromaticness {
-			c.Blackness = 100 - c.Chromaticness
+			if c.Chromaticness == 99 {
+				c.Blackness = 0
+			} else {
+				c.Blackness = 100 - c.Chromaticness
+			}
+		}
+	}
+
+	if chromaticness != 0 {
+		if c.Chromaticness == 99 {
+			c.Chromaticness = 100
+		}
+		c.Chromaticness += chromaticness * unit
+		if c.Chromaticness >= 100 {
+			c.Chromaticness = 99
+		}
+		if c.Chromaticness < 0 {
+			c.Chromaticness = 0
+		}
+		if c.Chromaticness > 100-c.Blackness {
+			if c.Blackness == 99 {
+				c.Chromaticness = 0
+			} else {
+				c.Chromaticness = 100 - c.Blackness
+			}
 		}
 	}
 
@@ -177,13 +202,29 @@ func (s *state) update(screen *ebiten.Image) error {
 		return nil
 	}
 
-	drawColorBox(screen, s.color, 0, 0)
+	for j := -4; j <= 4; j++ {
+		for i := -4; i <= 4; i++ {
+			c := adjustColor(s.color, j, 0, i)
+			x := (screenWidth-boxWidth)/2 + i*boxWidth
+			y := (screenHeight-boxHeight)/2 + j*boxHeight
+			drawColorBox(screen, c, x, y)
+		}
+	}
+
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("%0.2f", ebiten.CurrentFPS()))
 
 	return nil
 }
 
 func main() {
-	s := &state{}
+	c, err := ncs.Parse("1050-R90B")
+	if err != nil {
+		panic(err)
+	}
+	s := &state{
+		color: c,
+	}
+
 	if err := ebiten.Run(s.update, screenWidth, screenHeight, 1, "NCS Palette"); err != nil {
 		panic(err)
 	}
