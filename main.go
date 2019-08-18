@@ -119,7 +119,7 @@ func colorHex(c color.Color) string {
 }
 
 func adjustColor(c ncs.Color, blackness int, chromaticness int, hue int) ncs.Color {
-	const unit = 10
+	const unit = 5
 
 	if blackness != 0 {
 		if c.Blackness == 99 {
